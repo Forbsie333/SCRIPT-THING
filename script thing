@@ -1,0 +1,601 @@
+//@version=5
+indicator("Pierce Gap" , shorttitle = "Pierce Gap [V1.2]" , overlay = true , max_lines_count = 500, max_bars_back = 5000)
+// indicator("Pivot Points High Low", shorttitle="Pivots HL", overlay=true, max_labels_count=500)
+//___________________________________________________________________________________________________________________________________________________________________________
+//_______________  Timeframe signals
+
+
+bull_gap = low > high[2] and barstate.isconfirmed
+bear_gap = high < low[2] and barstate.isconfirmed
+showFVGs = input(true, "Show FVGs")
+//_______________
+//____ Array declaration
+//__FVG's
+var BUFVGH  = array.new_float()
+var BUFVGL  = array.new_float()
+var BUFVGC  = array.new_float()
+
+var BEFVGH  = array.new_float()
+var BEFVGL  = array.new_float()
+var BEFVGC  = array.new_float()
+
+//__Tested FVG's
+var BUTFVGH = array.new_float()
+var BUTFVGL = array.new_float()
+var BUTFVGC = array.new_float()
+
+var BETFVGH = array.new_float()
+var BETFVGL = array.new_float()
+var BETFVGC = array.new_float()
+
+//__CE hit tested FVG's
+var BUTCFVGH = array.new_float()
+var BUTCFVGL = array.new_float()
+var BUTCFVGC = array.new_float()
+
+var BETCFVGH = array.new_float()
+var BETCFVGL = array.new_float()
+var BETCFVGC = array.new_float()
+
+//__PTH broken by high after test
+var BUTHFVGH = array.new_float()
+var BUTHFVGL = array.new_float()
+var BUTHFVGC = array.new_float()
+
+var BETHFVGH = array.new_float()
+var BETHFVGL = array.new_float()
+var BETHFVGC = array.new_float()
+
+//__barssince arrays
+// bullish 
+var BUFVGBS = array.new_int()
+var BUTFVGBS = array.new_int()
+var BUTCFVGBS = array.new_int()
+//bearish
+var BEFVGBS = array.new_int()
+var BETFVGBS = array.new_int()
+var BETCFVGBS = array.new_int()
+
+var BUTH = array.new_float()
+var BETH = array.new_float()
+
+//__strategy arrays
+//Bullish
+var bull_entry = array.new_float()
+//Bearish
+var bear_entry = array.new_float()
+
+
+//______________Script functions
+remove(array, index, size)=>
+    if array.size(array) > size
+        array.remove(array, index)
+
+get(array, index, size)=>
+    if array.size(array) > size
+        array.get(array, index)
+
+insert(array, index, val)=>
+    array.insert(array, index, val)
+
+min(array, size)=>
+    if array.size(array) > size
+        array.max(array)
+
+max(array, size)=>  
+    if array.size(array) > size
+        array.max(array)
+
+
+set(array, index, value, size)=>
+    if array.size(array) > size
+        array.set(array, index, value)
+
+max(source) =>
+    A = ta.highest(source, last_bar_index - 1)
+    A
+
+min(source) =>
+    A = ta.lowest(source, last_bar_index - 1)
+    A
+
+//______________ Script Variables
+//_______________
+//_____ Bullish FVG
+
+var BUFVGHL = array.new_line()
+var BUFVGLL = array.new_line()
+var BUFVGCL = array.new_line()
+
+var BEFVGLL = array.new_line()
+var BEFVGHL = array.new_line()
+var BEFVGCL = array.new_line()
+
+linelength = 5
+
+if bull_gap
+    insert(BUFVGH, 0, low)
+    insert(BUFVGL, 0, high[2])
+    insert(BUFVGC, 0, (high[2] + low)/ 2)
+    insert(BUFVGBS, 0, 0)
+    array.insert(BUFVGHL , 0, line.new(x1 = bar_index[2] , y1 = low , x2 = bar_index + linelength, y2 = low , xloc = xloc.bar_index , color = color.rgb(255, 0, 0) , style = line.style_solid , width = 2))
+    array.insert(BUFVGLL , 0, line.new(x1 = bar_index[2] , y1 = high[2] , x2 = bar_index + linelength , y2 = high[2] , xloc = xloc.bar_index , color = color.rgb(255, 0, 0) , style = line.style_solid , width = 2))
+    array.insert(BUFVGCL , 0, line.new(x1 = bar_index[2] , y1 = ((high[2] + low)/2) , x2 = bar_index + linelength , y2 = ((high[2] + low)/2) , xloc = xloc.bar_index , color = color.rgb(255, 0, 0) , style = line.style_solid , width = 2))
+
+//_____ Bearish FVG
+
+if bear_gap
+    insert(BEFVGH, 0, low[2])
+    insert(BEFVGL, 0, high)
+    insert(BEFVGC, 0, (low[2] + high) /2)
+    insert(BEFVGBS, 0, 0)
+    array.insert(BEFVGLL , 0, line.new(x1 = bar_index[2] , y1 = high , x2 = bar_index + linelength , y2 = high , xloc = xloc.bar_index , color = color.rgb(0, 255, 0) , style = line.style_solid , width = 2))
+    array.insert(BEFVGHL, 0, line.new(x1 = bar_index[2] , y1 = low[2] , x2 = bar_index + linelength , y2 = low[2] , xloc = xloc.bar_index , color = color.rgb(0, 255, 0) , style = line.style_solid , width = 2))
+    array.insert(BEFVGCL , 0, line.new(x1 = bar_index[2] , y1 = ((low[2] + high)/2) , x2 = bar_index + linelength , y2 = ((low[2] + high)/2) , xloc = xloc.bar_index , color = color.rgb(0, 255, 0) , style = line.style_solid , width = 2))
+
+
+//_____________________________________________________________________________________________________________________________________________________________________________
+//_______________ Fvg, tested fvg, and CE fvg array manipulation
+//_______ Bullish barssince arrays
+
+//________________________________________________________________________
+
+
+
+//________________________________________________________________________
+
+
+
+//__untested fvg
+
+if array.size(BUFVGBS) > 0
+    if barstate.isconfirmed == true
+        for i = array.size(BUFVGBS) - 1 to 0
+            set(BUFVGBS, i, get(BUFVGBS, i, i) + 1, i)
+
+//__tested fvg
+
+if array.size(BUTFVGBS) > 0
+    if barstate.isconfirmed == true
+        for i = array.size(BUTFVGBS) - 1 to 0
+            set(BUTFVGBS, i, get(BUTFVGBS, i, i) + 1, i)
+
+//__ce tested fvg
+
+if array.size(BUTCFVGBS) > 0
+    if barstate.isconfirmed == true
+        for i = array.size(BUTCFVGBS) - 1 to 0
+            set(BUTCFVGBS, i, get(BUTCFVGBS, i, i) + 1, i)
+
+//_______ Bearish barssince arrays
+//__untested fvg
+
+if array.size(BEFVGBS) > 0
+    if barstate.isconfirmed == true
+        for i = array.size(BEFVGBS) - 1 to 0
+            set(BEFVGBS, i, get(BEFVGBS, i, i) + 1, i)
+
+//__tested fvg
+
+if array.size(BETFVGBS) > 0
+    if barstate.isconfirmed == true
+        for i = array.size(BETFVGBS) - 1 to 0
+            set(BETFVGBS, i, get(BETFVGBS, i, i) + 1, i)
+
+//__ce tested fvg
+ 
+if array.size(BETCFVGBS) > 0
+    if barstate.isconfirmed == true
+        for i = array.size(BETCFVGBS) - 1 to 0
+            set(BETCFVGBS, i, get(BETCFVGBS, i, i) + 1, i)
+
+//___________________________________________________________________________________________________________________________________
+//_______________ Strategy framework:: Creating new FVG's, testing and ce testing
+//_____ Bullish tested FVG's
+cond(array1, array2, val)=>
+    A = false
+    if array.size(array2) > 0
+        if get(array1, val, val) != get(array2, 0, 0)
+            A := true
+    else if array.size(array2) == 0
+        A := true 
+    A
+
+high1 = array.size(BUFVGBS) > 0 ? ta.highest(high, get(BUFVGBS, 0, 0)) : 999999999999
+high2 = array.size(BUTFVGBS) > 0 ? ta.highest(high, get(BUTFVGBS, 0, 0)) : 0.00001
+
+if barstate.isconfirmed == true and cond(BUFVGH, BUTFVGH, 0) == true
+    if close > get(BUFVGH, 0, 0)
+        if low < get(BUFVGH , 0, 0)
+            if low > get(BUFVGC , 0, 0)
+                insert(BUTFVGL , 0, get(BUFVGL, 0, 0))
+                insert(BUTFVGH , 0, get(BUFVGH, 0, 0))
+                insert(BUTFVGC , 0, get(BUFVGC, 0, 0))
+                insert(BUTFVGBS, 0, 0)
+                insert(BUTH, 0, high1)
+                line.set_color(get(BUFVGHL, 0, 0), color.rgb(150, 65, 0))
+                line.set_color(get(BUFVGLL, 0, 0), color.rgb(150, 65, 0))
+                line.set_color(get(BUFVGCL, 0, 0), color.rgb(150, 65, 0))
+                
+                //array.set(BUTH, i, ta.highest(high, get(BUFVGBS, 0  , 0)))
+
+
+//_____ Bullish tested fvg high broke?
+
+if barstate.isnew == true and array.size(BUTH) > 0 and array.size(BUTHFVGH) > 0
+    if get(BUFVGH, 0, 0) == get(BUTFVGH, 0, 0) and get(BUTFVGH, 0, 0) != get(BUTHFVGH, 0, 0)
+        if get(BUTFVGBS, 0, 0) > 5
+            if high2 >= high1  
+                insert(BUTHFVGH, 0, get(BUTFVGH, 0, 0))
+                insert(BUTHFVGL, 0, get(BUTFVGL, 0, 0))
+                insert(BUTHFVGC, 0, get(BUTFVGC, 0, 0))
+if barstate.isnew == true and array.size(BUTH) == 1 and array.size(BUTHFVGH) == 0
+    if get(BUTFVGBS, 0, 0) > 1
+        if high2 >= high1
+            insert(BUTHFVGH, 0, get(BUTFVGH, 0, 0))
+            insert(BUTHFVGL, 0, get(BUTFVGL, 0, 0))
+            insert(BUTHFVGC, 0, get(BUTFVGC, 0, 0))
+
+
+array.sort(BUTHFVGH, order.descending)
+array.sort(BUTHFVGL, order.descending)
+array.sort(BUTHFVGC, order.descending)
+
+//_____ Bullish CE tested FVG's
+                   
+if barstate.isconfirmed == true and cond(BUTHFVGH, BUTCFVGH, 0) == true
+    if get(BUTFVGH, 0, 0) == get(BUTHFVGH, 0, 0)
+        if low <= get(BUTHFVGC, 0, 0)
+            if close >= get(BUTHFVGC, 0, 0)
+                insert(BUTCFVGH, 0, get(BUTHFVGH, 0, 0))
+                insert(BUTCFVGL, 0, get(BUTHFVGL, 0, 0))
+                insert(BUTCFVGC, 0, get(BUTHFVGC, 0, 0))
+                insert(BUTCFVGBS, 0, 0)
+                line.set_color(get(BUFVGHL, 0, 0), color.rgb(255, 255, 255))
+                line.set_color(get(BUFVGLL, 0, 0), color.rgb(255, 255, 255))
+                line.set_color(get(BUFVGCL, 0, 0), color.rgb(255, 255, 255))
+
+
+//_____ Bearish tested FVG's
+low1 = array.size(BEFVGBS) > 0 ? ta.lowest(low, get(BEFVGBS, 0, 0)) : 0.000000001
+low2 = array.size(BETFVGBS) > 0 ? ta.lowest(low, get(BETFVGBS, 0, 0)) : 99999999999
+
+if barstate.isconfirmed == true and cond(BEFVGH, BETFVGH, 0) == true
+    if close < get(BEFVGL, 0, 0)
+        if high > get(BEFVGL , 0, 0)
+            if high < get(BEFVGC , 0, 0)
+                insert(BETFVGL , 0, get(BEFVGL, 0, 0))
+                insert(BETFVGH , 0, get(BEFVGH, 0, 0))
+                insert(BETFVGC , 0, get(BEFVGC, 0, 0))
+                insert(BETFVGBS, 0, 0)
+                insert(BETH, 0, low1)
+                line.set_color(get(BEFVGHL, 0, 0), color.rgb(0, 255, 255))
+                line.set_color(get(BEFVGLL, 0, 0), color.rgb(0, 255, 255))
+                line.set_color(get(BEFVGCL, 0, 0), color.rgb(0, 255, 255))
+
+
+//_____ Bullish tested fvg high broke?
+
+if barstate.isconfirmed == true and array.size(BETH) > 0 and array.size(BETHFVGH) > 0
+    if get(BEFVGL, 0, 0) == get(BETFVGL, 0, 0) and get(BETFVGL, 0, 0) != get(BETHFVGL, 0, 0)
+        if get(BETFVGBS, 0, 0) > 1
+            if low2 <= low1  
+                insert(BETHFVGH, 0, get(BETFVGH, 0, 0))
+                insert(BETHFVGL, 0, get(BETFVGL, 0, 0))
+                insert(BETHFVGC, 0, get(BETFVGC, 0, 0))
+if barstate.isconfirmed == true and array.size(BETH) == 1 and array.size(BETHFVGL) == 0
+    if get(BETFVGBS, 0, 0) > 1
+        if low2 <= low1
+            insert(BETHFVGH, 0, get(BETFVGH, 0, 0))
+            insert(BETHFVGL, 0, get(BETFVGL, 0, 0))
+            insert(BETHFVGC, 0, get(BETFVGC, 0, 0))
+
+if barstate.isnew == true
+    array.sort(BETHFVGH, order.ascending)
+    array.sort(BETHFVGL, order.ascending)
+    array.sort(BETHFVGC, order.ascending)
+
+//_____ Bearish CE tested FVG's
+
+if barstate.isconfirmed == true and cond(BETHFVGH, BETCFVGH, 0) == true
+    if get(BETFVGL, 0, 0) == get(BETHFVGL, 0, 0)
+        if high >= get(BETHFVGC, 0, 0)
+            if close <= get(BETHFVGC, 0, 0)
+                insert(BETCFVGH, 0, get(BETHFVGH, 0, 0))
+                insert(BETCFVGL, 0, get(BETHFVGL, 0, 0))
+                insert(BETCFVGC, 0, get(BETHFVGC, 0, 0))
+                insert(BETCFVGBS, 0, 0)
+                line.set_color(get(BEFVGHL, 0, 0), color.rgb(255, 255, 255))
+                line.set_color(get(BEFVGLL, 0, 0), color.rgb(255, 255, 255))
+                line.set_color(get(BEFVGCL, 0, 0), color.rgb(255, 255, 255))
+
+//______________________________
+
+
+
+//plot(get(BUFVGC, 0, 0), color=color.rgb(185, 0, 0), linewidth = 2)
+//plot(get(BUFVGH, 0, 0), color=color.rgb(185, 0, 0), linewidth = 1)
+//plot(get(BUFVGL, 0, 0), color=color.rgb(185, 0, 0), linewidth = 1)
+//plot(get(BUTFVGC, 0, 0), color=color.rgb(150, 65, 0), linewidth = 2)
+//plot(get(BUTFVGH, 0, 0), color=color.rgb(150, 65, 0), linewidth = 1)
+//plot(get(BUTFVGL, 0, 0), color=color.rgb(150, 65, 0), linewidth = 1)
+//plot(get(BUTHFVGC, 0, 0), color=color.rgb(255, 255, 0), linewidth = 2)
+//plot(get(BUTHFVGH, 0, 0), color=color.rgb(255, 255, 0), linewidth = 1)
+//plot(get(BUTHFVGL, 0, 0), color=color.rgb(255, 255, 0), linewidth = 1)
+//plot(get(BUTCFVGC, 0, 0), color=color.rgb(255, 255, 255), linewidth = 2)
+//plot(get(BUTCFVGH, 0, 0), color=color.rgb(255, 255, 255), linewidth = 1)
+//plot(get(BUTCFVGL, 0, 0), color=color.rgb(255, 255, 255), linewidth = 1)
+//plot(get(BEFVGC, 0, 0), color=color.rgb(0, 255, 59), linewidth = 2)
+//plot(get(BEFVGL, 0, 0), color=color.rgb(0, 255, 59), linewidth = 1)
+//plot(get(BEFVGH, 0, 0), color=color.rgb(0, 255, 59), linewidth = 1)
+//plot(get(BETFVGC, 0, 0), color= color.rgb(0, 255, 255), linewidth = 2)
+//plot(get(BETFVGL, 0, 0), color= color.rgb(0, 255, 255), linewidth = 1)
+//plot(get(BETFVGH, 0, 0), color= color.rgb(0, 255, 255), linewidth = 1)
+//plot(get(BETHFVGC, 0, 0), color= color.rgb(255, 0, 255), linewidth = 2)
+//plot(get(BETHFVGL, 0, 0), color= color.rgb(255, 0, 255), linewidth = 1)
+//plot(get(BETHFVGH, 0, 0), color= color.rgb(255, 0, 255), linewidth = 1)
+//plot(get(BETCFVGC, 0, 0), color= color.rgb(255, 255, 255), linewidth = 2)
+//plot(get(BETCFVGL, 0, 0), color= color.rgb(255, 255, 255), linewidth = 1)
+//plot(get(BETCFVGH, 0, 0), color= color.rgb(255, 255, 255), linewidth = 1)
+//plot(high1, color= color.rgb(43, 255, 0), linewidth = 2)
+//plot(high2, color= color.rgb(255, 0, 0), linewidth = 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//_____________________________________________________________________________________________________
+//_____ Entry Conditions
+
+var bull_setup = array.new_int()
+var bear_setup = array.new_int()
+
+if barstate.isconfirmed == true
+    if bull_gap == true
+        if get(BUFVGL, 0, 0) <= get(BUTCFVGH, 0, 0)
+            insert(bull_entry, 0, 1)
+
+if barstate.isconfirmed == true
+    if bear_gap == true
+        if get(BEFVGH, 0, 0) >= get(BETCFVGL, 0, 0)
+            insert(bear_entry, 0, 1)
+
+
+//__________    ___________________________________________________________________________________________________________________________________________________________________________
+//_______________ Stop loss and take profit parameters
+//____ bull entry
+//___________________________________________________________________________________________________________________________________
+//_______________ fail conditions
+//____ Bullish
+
+
+//____ Bearish
+
+
+//___________________________________________________________________________________________________________________________________
+//_______________ Simplified fail conditions
+//____ Bullish
+//___________________________________________________________________________________________________________________________________
+
+if array.size(BUFVGH) > 0 and array.size(BUTFVGH) > 0
+    if get(BUFVGH, 0, 0) != get (BUTFVGH, 0, 0)
+        if low < get(BUFVGC, 0, 0)
+            remove(BUFVGH, 0, 0)
+            remove(BUFVGL, 0, 0)
+            remove(BUFVGC, 0, 0)
+            remove(BUFVGBS, 0, 0)
+            line.delete(get(BUFVGHL, 0, 0))
+            line.delete(get(BUFVGLL, 0, 0))
+            line.delete(get(BUFVGCL, 0, 0))
+            remove(BUFVGHL, 0, 0)
+            remove(BUFVGLL, 0, 0)
+            remove(BUFVGCL, 0, 0)
+else if array.size(BUFVGH) > 0 and array.size(BUTFVGH) == 0
+    if low < get(BUFVGC, 0, 0)
+        remove(BUFVGH, 0, 0)
+        remove(BUFVGL, 0, 0)
+        remove(BUFVGC, 0, 0)
+        remove(BUFVGBS, 0, 0)
+        line.delete(get(BUFVGHL, 0, 0))
+        line.delete(get(BUFVGLL, 0, 0))
+        line.delete(get(BUFVGCL, 0, 0))
+        remove(BUFVGHL, 0, 0)
+        remove(BUFVGLL, 0, 0)
+        remove(BUFVGCL, 0, 0)
+
+
+if array.size(BEFVGL) > 0 and array.size(BETFVGL) > 0
+    if get(BEFVGL, 0, 0) != get (BETFVGL, 0, 0)
+        if high > get(BEFVGC, 0, 0)
+            remove(BEFVGH, 0, 0)
+            remove(BEFVGL, 0, 0)
+            remove(BEFVGC, 0, 0)
+            remove(BEFVGBS, 0, 0)
+            line.delete(get(BEFVGHL, 0, 0))
+            line.delete(get(BEFVGLL, 0, 0))
+            line.delete(get(BEFVGCL, 0, 0))
+            remove(BEFVGHL, 0, 0)
+            remove(BEFVGLL, 0, 0)
+            remove(BEFVGCL, 0, 0)
+else if array.size(BEFVGL) > 0 and array.size(BETFVGL) == 0
+    if high > get(BEFVGC, 0, 0)
+        remove(BEFVGH, 0, 0)
+        remove(BEFVGL, 0, 0)
+        remove(BEFVGC, 0, 0)
+        remove(BEFVGBS, 0, 0)
+        line.delete(get(BEFVGHL, 0, 0))
+        line.delete(get(BEFVGLL, 0, 0))
+        line.delete(get(BEFVGCL, 0, 0))
+        remove(BEFVGHL, 0, 0)
+        remove(BEFVGLL, 0, 0)
+        remove(BEFVGCL, 0, 0)
+
+
+
+if barstate.isconfirmed == true
+    if bull_gap == true
+        if get(BUFVGL, 0, 0) > get(BUTCFVGH, 0, 0)
+            remove(BUTCFVGH, 0, 0)
+            remove(BUTCFVGL, 0, 0)
+            remove(BUTCFVGC, 0, 0)
+            remove(BUTFVGH, 0, 0)
+            remove(BUTFVGL, 0, 0)
+            remove(BUTFVGC, 0, 0)
+            remove(BUTH, 0, 0)
+            remove(BUFVGH, 1, 1)
+            remove(BUFVGL, 1, 1)
+            remove(BUFVGC, 1, 1)
+            remove(BUFVGBS, 1, 1)
+            remove(BUTFVGBS, 0, 0)
+            remove(BUTCFVGBS, 0, 0)
+            line.delete(get(BUFVGHL, 1, 1))
+            line.delete(get(BUFVGLL, 1, 1))
+            line.delete(get(BUFVGCL, 1, 1))
+            remove(BUFVGHL, 1, 1)
+            remove(BUFVGLL, 1, 1)
+            remove(BUFVGCL, 1, 1)
+
+if barstate.isconfirmed == true
+    if bear_gap == true
+        if get(BEFVGH, 0, 0) < get(BETCFVGL, 0, 0)
+            remove(BETCFVGL, 0, 0)
+            remove(BETCFVGH, 0, 0)
+            remove(BETCFVGC, 0, 0)
+            remove(BETFVGL, 0, 0)
+            remove(BETFVGH, 0, 0)
+            remove(BETFVGC, 0, 0)
+            remove(BETH, 0, 0)
+            remove(BEFVGL, 1, 1)
+            remove(BEFVGH, 1, 1)
+            remove(BEFVGC, 1, 1)
+            remove(BEFVGBS, 1, 1)
+            remove(BETFVGBS, 0, 0)
+            remove(BETCFVGBS, 0, 0)
+            line.delete(get(BEFVGHL, 1, 1))
+            line.delete(get(BEFVGLL, 1, 1))
+            line.delete(get(BEFVGCL, 1, 1))
+            remove(BEFVGHL, 1, 1)
+            remove(BEFVGLL, 1, 1)
+            remove(BEFVGCL, 1, 1)
+
+//___________________________________________________________________________________________________________________________________
+//_______________ CLEAN UP CONDITIONS
+
+cleanupbuy(array1, array2, array3, array4)=>
+    if array.size(array1) > 0
+        if barstate.isconfirmed == true
+            if close < get(array3, 0, 0) or low < get(array2, 0, 0)
+                remove(array1, 0, 0)
+                remove(array2, 0, 0)
+                remove(array3, 0, 0)
+                remove(array4, 0, 0)
+
+cleanupsel(array1, array2, array3, array4)=>
+    if array.size(array1) > 0
+        if barstate.isconfirmed == true
+            if close > get(array3, 0, 0) or high > get(array1, 0, 0)
+                remove(array1, 0, 0)
+                remove(array2, 0, 0)
+                remove(array3, 0, 0)
+                remove(array4, 0, 0)
+
+cleanupbuy(BUTCFVGH, BUTCFVGL, BUTCFVGC, BUTCFVGBS)
+cleanupsel(BETCFVGH, BETCFVGL, BETCFVGC, BETCFVGBS)
+
+if array.size(BUTFVGH) > 0
+    if barstate.isconfirmed == true
+        if close < get(BUTFVGC, 0, 0) or low < get(BUTFVGL, 0, 0)
+            remove(BUTFVGH, 0, 0)
+            remove(BUTFVGL, 0, 0)
+            remove(BUTFVGC, 0, 0)
+            remove(BUTH, 0, 0)
+            remove(BUTFVGBS, 0, 0)
+
+if array.size(BETFVGH) > 0
+    if barstate.isconfirmed == true
+        if close > get(BETFVGC, 0, 0) or high > get(BETFVGH, 0, 0)
+            remove(BETFVGH, 0, 0)
+            remove(BETFVGL, 0, 0)
+            remove(BETFVGC, 0, 0)
+            remove(BETH, 0, 0)
+            remove(BETFVGBS, 0, 0)
+
+if array.size(BUTHFVGH) > 0 and barstate.isconfirmed == true
+    for i = array.size(BUTHFVGH) - 1 to 0
+        if close < get(BUTHFVGC, i, i) or low < get(BUTHFVGL, i, i)
+            remove(BUTHFVGH, i, i)
+            remove(BUTHFVGL, i, i)
+            remove(BUTHFVGC, i, i)
+
+if array.size(BETHFVGH) > 0 and barstate.isconfirmed == true
+    for i = array.size(BETHFVGH) - 1 to 0
+        if close > get(BETHFVGC, i, i) or high > get(BETHFVGH, i, i)
+            remove(BETHFVGH, i, i)
+            remove(BETHFVGL, i, i)
+            remove(BETHFVGC, i, i)
+
+
+if array.size(BUFVGH) > 0
+    if barstate.isconfirmed == true
+        if close < get(BUFVGC, 0, 0) or low < get(BUFVGL, 0, 0)
+            remove(BUFVGH, 0, 0)
+            remove(BUFVGL, 0, 0)
+            remove(BUFVGC, 0, 0)
+            line.delete(get(BUFVGHL, 0, 0))
+            line.delete(get(BUFVGLL, 0, 0))
+            line.delete(get(BUFVGCL, 0, 0))
+            remove(BUFVGHL, 0, 0)
+            remove(BUFVGLL, 0, 0)
+            remove(BUFVGCL, 0, 0)
+            remove(BUFVGBS, 0, 0)
+
+
+if array.size(BEFVGH) > 0
+    if barstate.isconfirmed == true
+        if close > get(BEFVGC, 0, 0) or high > get(BEFVGH, 0, 0)
+            remove(BEFVGL, 0, 0)
+            remove(BEFVGH, 0, 0)
+            remove(BEFVGC, 0, 0)
+            line.delete(get(BEFVGHL, 0, 0))
+            line.delete(get(BEFVGLL, 0, 0))
+            line.delete(get(BEFVGCL, 0, 0))
+            remove(BEFVGHL, 0, 0)
+            remove(BEFVGLL, 0, 0)
+            remove(BEFVGCL, 0, 0)
+            remove(BEFVGBS, 0, 0)
+
+
+
+
+
+
+//__________________________________________________________________________________________________________________________________________________________________________
+//_______________ Alerts
+
+plot(array.size(bull_entry), color=color.green)
+
+plot(array.size(bear_entry), color= color.red)
+
+
+if ta.change(array.size(bull_entry), 1) > 0
+    alert(" Enter buy at :" + str.tostring(get(BUTCFVGH, 0, 0)), alert.freq_once_per_bar)
+
+if ta.change(array.size(bear_entry), 1) > 0
+    alert( " Enter sell at :" + str.tostring(get(BETCFVGL, 0, 0)), alert.freq_once_per_bar)
